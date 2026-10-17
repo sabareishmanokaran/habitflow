@@ -4,15 +4,25 @@ A mobile-first habit tracker that installs on **Android and iPhone** from the br
 No build step and no dependencies: plain HTML, CSS and JavaScript modules.
 
 ## Features
-- **Build habits** (yes/no): daily, specific weekdays, or X times per week
-- **Measure goals** (water, steps, minutes) with a +/− stepper and a progress bar
-- **Quit / de-addiction**: live clean-time timer, milestones, money saved, slip log with triggers,
-  pattern insights (top triggers, time of day), and an **SOS urge screen** (breathing guide,
-  10-minute delay timer, your own reasons)
-- Streaks with **skip/rest days** that don't break them, a GitHub-style history heatmap, and editable past days with notes
-- Stats: 30-day completion, a 14-day trend, best weekdays, and per-habit rates
-- Light/dark theme, JSON backup export/import, archive/restore
+- **Welcome & profile**: name, age, sex; the app greets you by name and counts your days on HabitFlow
+- **Dashboard** with four sections:
+  - **To Do / Improve**: yes/no habits or amount goals (steps, water, minutes)
+  - **Not To Do**: things you avoid, with a clean-time timer, milestones, slip log, pattern
+    insights and an **SOS urge screen**
+  - **Reduce**: daily limits (sugar, TV, junk food)
+- **Swipe right** to complete a habit for the day. For Not To Do it's a **bedtime check-in**,
+  checked against the device clock (from your bedtime until 4 AM, not after a slip)
+- **Built-in timer** for timed habits (no-phone time, reading, TV, meditation): it runs until you
+  touch the screen, then offers Stop (save the time) or Continue
+- **Friends**: share a day card (image + link) and add friends from their links. Totals only, no
+  habit names, and no server: the snapshot travels inside the link
+- Streaks with rest days, history heatmaps, stats (tap the days counter), light/dark theme,
+  backup export/import
 - Private: all data stays on the device (localStorage)
+
+## Single-file version
+`python tools/build-standalone.py` writes `dist/habitflow.html`, one self-contained file with
+everything inlined.
 
 ## Run locally
 Either of these works:

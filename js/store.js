@@ -2,7 +2,7 @@
 const KEY = 'habitflow:v1';
 
 function blank() {
-  return { version: 1, habits: [], entries: {}, slips: [], settings: { theme: 'system', currency: '$' } };
+  return { version: 1, profile: null, habits: [], entries: {}, slips: [], friends: [], settings: { theme: 'system', currency: '$', bedtime: 20 } };
 }
 
 function normalize(s) {
@@ -10,9 +10,11 @@ function normalize(s) {
   return {
     ...b,
     ...s,
+    profile: s.profile && typeof s.profile.name === 'string' ? s.profile : null,
     habits: Array.isArray(s.habits) ? s.habits : [],
     entries: s.entries && typeof s.entries === 'object' ? s.entries : {},
     slips: Array.isArray(s.slips) ? s.slips : [],
+    friends: Array.isArray(s.friends) ? s.friends : [],
     settings: { ...b.settings, ...(s.settings || {}) },
   };
 }
@@ -83,6 +85,42 @@ export function addSlip(slip) {
 
 export function deleteSlip(id) {
   state.slips = state.slips.filter((s) => s.id !== id);
+  save();
+}
+
+/** profile: { name, age, sex: 'male' | 'female' | 'unspecified', createdAt } */
+export function setProfile(profile) {
+  state.profile = { ...(state.profile || { createdAt: Date.now() }), ...profile };
+  save();
+}
+
+/** Stable id that identifies this person on shared cards (created on first use). */
+export function profileId() {
+  if (!state.profile) return null;
+  if (!state.profile.uid) { state.profile.uid = uid(); save(); }
+  return state.profile.uid;
+}
+
+// Friends are saved snapshots ("cards") of other people's days: { id, card, addedAt, updatedAt }.
+export const friend = (id) => state.friends.find((f) => f.id === id);
+
+/** Adds a friend or refreshes their card if this one is newer. Returns 'added' | 'updated' | 'same'. */
+export function upsertFriend(card) {
+  const f = friend(card.id);
+  if (!f) {
+    state.friends.push({ id: card.id, card, addedAt: Date.now(), updatedAt: Date.now() });
+    save();
+    return 'added';
+  }
+  if ((card.ts || 0) <= (f.card.ts || 0)) return 'same';
+  f.card = card;
+  f.updatedAt = Date.now();
+  save();
+  return 'updated';
+}
+
+export function removeFriend(id) {
+  state.friends = state.friends.filter((f) => f.id !== id);
   save();
 }
 

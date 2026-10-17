@@ -39,6 +39,44 @@ export function weekStart(k) {
 
 const maxKey = (a, b) => (a > b ? a : b);
 
+export function daysBetween(a, b) {
+  return Math.round((parseKey(b) - parseKey(a)) / DAY_MS);
+}
+
+/**
+ * Dashboard section a habit belongs to: 'todo' | 'avoid' | 'improve' | 'reduce'.
+ * Older habits without one fall back by type.
+ */
+export function catOf(h) {
+  if (h.category) return h.category;
+  return h.type === 'quit' ? 'avoid' : h.type === 'limit' ? 'reduce' : 'todo';
+}
+
+/**
+ * Habit types:
+ *  check – yes/no        count – reach a daily goal
+ *  limit – stay at or under a daily cap; the day counts once confirmed (entry.ok)
+ *  quit  – never; tracked by a clean-time timer and slips
+ */
+
+const MINUTE_UNITS = /^(m|min|mins|minute|minutes)$/i;
+const HOUR_UNITS = /^(h|hr|hrs|hour|hours)$/i;
+
+/** Habits that get the built-in timer: time-based amounts, or yes/no habits marked as timed. */
+export function isTimed(h) {
+  if (h.type === 'check') return !!h.timed;
+  if (h.type !== 'count' && h.type !== 'limit') return false;
+  const u = (h.unit || '').trim();
+  return MINUTE_UNITS.test(u) || HOUR_UNITS.test(u);
+}
+
+/** Converts elapsed milliseconds into the habit's unit (minutes or hours), 2 decimals. */
+export function msToUnit(h, ms) {
+  const mins = ms / 60000;
+  const v = HOUR_UNITS.test((h.unit || '').trim()) ? mins / 60 : mins;
+  return Math.round(v * 100) / 100;
+}
+
 export function isDue(h, k) {
   if (h.type === 'quit') return false;
   if (h.schedule?.kind === 'weekdays') return h.schedule.days.includes(parseKey(k).getDay());
@@ -46,13 +84,17 @@ export function isDue(h, k) {
 }
 
 export function isDone(h, e) {
+  // A Reduce day only counts once confirmed (swiped or saved) while within the limit.
+  if (h.type === 'limit') return e?.s === 'skip' || (!!e?.ok && (e.v || 0) <= (h.target || 0));
   if (!e || e.s === 'skip') return false;
   if (h.type === 'count') return (e.v || 0) >= (h.target || 1);
   return (e.v || 0) >= 1;
 }
 
+/** 0..1 toward a goal; for limits, how much of the cap is used (can exceed 1). */
 export function progress(h, e) {
   if (!e || e.s === 'skip') return 0;
+  if (h.type === 'limit') return (e.v || 0) / (h.target || 1);
   if (h.type === 'count') return Math.min(1, (e.v || 0) / (h.target || 1));
   return e.v >= 1 ? 1 : 0;
 }
@@ -154,6 +196,35 @@ export function dayTally(habits, entries, k, today, includeOpenToday = false) {
 }
 
 // ---------- quit / de-addiction ----------
+
+/** Before this hour, a bedtime check-in still belongs to the previous day (late sleepers). */
+export const NIGHT_CUTOFF_HOUR = 4;
+
+/** The day a night check-in made at `now` counts for. */
+export function nightKey(now = new Date()) {
+  return now.getHours() < NIGHT_CUTOFF_HOUR ? addDays(dateKey(now), -1) : dateKey(now);
+}
+
+/** Night check-ins are only open from bedtime until the early-morning cutoff. */
+export function nightCheckInOpen(now = new Date(), bedtimeHour = 20) {
+  const h = now.getHours();
+  return h >= bedtimeHour || h < NIGHT_CUTOFF_HOUR;
+}
+
+/** A day counts for a Not To Do habit only if it was checked in at night and has no slip. */
+export function cleanNight(ents, slipDays, k) {
+  return !!ents[k]?.v && !slipDays.has(k);
+}
+
+/** Consecutive confirmed clean nights; tonight still being open never breaks the streak. */
+export function nightStreaks(h, ents = {}, slipDays = new Set(), today = dateKey()) {
+  let run = 0, best = 0, total = 0;
+  for (let k = dateKey(new Date(h.quitStart || Date.now())); k <= today; k = addDays(k, 1)) {
+    if (cleanNight(ents, slipDays, k)) { total++; best = Math.max(best, ++run); }
+    else if (k !== today) run = 0;
+  }
+  return { current: run, best, total };
+}
 
 export function quitInfo(h, slips, now = Date.now()) {
   const start = h.quitStart || now;

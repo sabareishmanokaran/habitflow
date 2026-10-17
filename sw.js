@@ -1,5 +1,5 @@
 // Offline support: network-first for fresh updates, cache fallback when offline.
-const CACHE = 'habitflow-v1';
+const CACHE = 'habitflow-v4';
 const ASSETS = [
   './',
   'index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
   'js/app.js',
   'js/store.js',
   'js/logic.js',
+  'js/share.js',
   'manifest.webmanifest',
   'icons/icon-192.png',
   'icons/icon-512.png',
