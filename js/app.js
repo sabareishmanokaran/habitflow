@@ -12,6 +12,9 @@ let currentPage = 'today';
 let sheetTimers = [];
 let installEvt = null;
 
+// Shown in Settings so you can confirm which version a phone is running.
+const APP_VERSION = 'v2.1';
+
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#8b5cf6', '#14b8a6'];
 const EMOJIS = ['✅', '💧', '🏃', '💪', '🚶', '📖', '🧘', '😴', '🥗', '✍️', '💊', '🌿', '📵', '📺', '🍔', '🍩', '☕', '🚭', '🍺', '🔞', '🍬', '🎮'];
 const TRIGGERS = ['Stress', 'Boredom', 'Craving', 'Social', 'Tired', 'Lonely', 'Anger', 'Celebrating', 'Other'];
@@ -1021,7 +1024,7 @@ function renderSettings() {
       <h2 class="h2">Danger zone</h2>
       <button class="btn danger block" data-act="reset">Erase all data</button>
     </section>
-    <p class="muted tiny center">HabitFlow v1.0 · made with care</p>`;
+    <p class="muted tiny center">HabitFlow ${APP_VERSION}${window.HABITFLOW_STANDALONE ? ' · single-file copy' : ''} · made with care</p>`;
 }
 
 // ---------- sheets ----------
@@ -1686,5 +1689,21 @@ if (loadTimer()) {
 }
 navigator.storage?.persist?.().catch(() => {});
 if ('serviceWorker' in navigator && location.protocol !== 'file:' && !window.HABITFLOW_STANDALONE) {
-  navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW registration failed', e));
+  // When an update takes over from an older version, reload once so the new screens show
+  // immediately instead of on the next launch. (Not on first install: nothing to replace.)
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded || loadTimer()?.runStart) return; // never interrupt a running timer
+    reloaded = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .then((reg) => {
+      // Phones keep installed apps open for days; check for updates whenever it's reopened.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    })
+    .catch((e) => console.warn('SW registration failed', e));
 }
